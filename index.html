@@ -582,80 +582,73 @@
             }
         });
         
-        async function fetchServerData(target, edition) {
-            const [ip, port] = parseTarget(target);
-            let isBedrock = false;
-            let detectedEdition = edition;
-            
-            // Mejorar la detección automática
-            if (edition === 'auto') {
-                // Si tiene puerto 19132 o 19133 (puertos comunes de Bedrock)
-                if (port === '19132' || port === '19133') {
-                    isBedrock = true;
-                    detectedEdition = 'bedrock';
-                } 
-                // Si es una IP numérica con puerto, podría ser Bedrock
-                else if (port && /^\d{1,5}$/.test(port) && /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) {
-                    // Intentar primero Java, luego Bedrock
-                    try {
-                        const javaApiUrl = `https://api.mcsrvstat.us/2/${ip}${port ? `:${port}` : ''}`;
-                        const response = await fetchWithTimeout(javaApiUrl);
-                        if (response.ok) {
-                            const data = await response.json();
-                            if (data.online) {
-                                isBedrock = false;
-                                detectedEdition = 'java';
-                                return data;
-                            }
-                        }
-                    } catch (e) {
-                        // Fallback a Bedrock
-                        isBedrock = true;
-                        detectedEdition = 'bedrock';
-                    }
-                } else {
-                    // Por defecto asumir Java para dominios sin puerto específico
-                    isBedrock = false;
-                    detectedEdition = 'java';
-                }
-            } else if (edition === 'bedrock') {
-                isBedrock = true;
-            } else {
-                isBedrock = false;
+async function fetchServerData(target, edition) {
+    const [ip, port] = parseTarget(target);
+    let isBedrock = false;
+    
+    if (edition === 'bedrock') {
+        isBedrock = true;
+    }
+    
+    const apiBase = isBedrock ? 'https://api.mcsrvstat.us/bedrock/2/' : 'https://api.mcsrvstat.us/2/';
+    const apiUrl = `${apiBase}${ip}${port ? `:${port}` : ''}`;
+    
+    console.log('Consultando API:', apiUrl);
+    
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        
+        const response = await fetch(apiUrl, {
+            signal: controller.signal,
+            headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'VyperStats/1.0'
             }
-            
-            const apiBase = isBedrock ? 'https://api.mcsrvstat.us/bedrock/2/' : 'https://api.mcsrvstat.us/2/';
-            const apiUrl = `${apiBase}${ip}${port ? `:${port}` : ''}`;
-            
-            console.log('Consultando API:', apiUrl, 'Edición:', detectedEdition);
-            
-            try {
-                const data = await fetchWithRetry(apiUrl, isBedrock);
-                data._detectedEdition = detectedEdition;
-                data._isBedrock = isBedrock;
-                return data;
-                
-            } catch (error) {
-                // Si falla con una edición, intentar con la otra
-                if (edition === 'auto') {
-                    console.log('Intento fallido, probando edición alternativa...');
-                    const alternativeApiUrl = isBedrock 
-                        ? `https://api.mcsrvstat.us/2/${ip}${port ? `:${port}` : ''}`
-                        : `https://api.mcsrvstat.us/bedrock/2/${ip}${port ? `:${port}` : ''}`;
-                    
-                    try {
-                        const alternativeData = await fetchWithRetry(alternativeApiUrl, !isBedrock);
-                        alternativeData._detectedEdition = isBedrock ? 'java' : 'bedrock';
-                        alternativeData._isBedrock = !isBedrock;
-                        return alternativeData;
-                    } catch (altError) {
-                        throw error; // Lanzar el error original
-                    }
-                } else {
-                    throw error;
-                }
-            }
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            throw new Error(`Error de API: ${response.status}`);
         }
+        
+        const data = await response.json();
+        
+        if (!data.online) {
+            data._isOffline = true;
+        }
+        
+        data._isBedrock = isBedrock;
+        data._edition = edition;
+        
+        return data;
+        
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            throw new Error('Tiempo de espera agotado. El servidor no respondió.');
+        }
+        throw new Error(`No se pudo conectar con la API: ${error.message}`);
+    }
+}
+
+function parseTarget(target) {
+    let ip = target;
+    let port = null;
+    
+    if(target.includes(':')) {
+        const lastColon = target.lastIndexOf(':');
+        ip = target.substring(0, lastColon);
+        port = target.substring(lastColon + 1);
+        
+        if(!port || isNaN(port)) {
+            ip = target;
+            port = null;
+        }
+    }
+    
+    return [ip, port];
+}
         
         async function fetchWithRetry(url, isBedrock) {
             let lastError;
@@ -753,207 +746,180 @@
         }
         
         function displayResults(data) {
-            console.log('Datos recibidos:', data);
-            
-            const resultsGrid = document.getElementById('resultsGrid');
-            const statusIndicator = document.getElementById('connectionStatus');
-            const serverIconContainer = document.getElementById('serverIconContainer');
-            
-            const isOnline = data.online === true;
-            const isBedrock = data._isBedrock || (data.debug && data.debug.bedrock === true);
-            const detectedEdition = data._detectedEdition || (isBedrock ? 'bedrock' : 'java');
-            
-            if(isOnline) {
-                statusIndicator.className = 'status-indicator status-online';
-                statusIndicator.innerHTML = `<i class="fas fa-check-circle"></i> SERVIDOR EN LÍNEA`;
-            } else {
-                statusIndicator.className = 'status-indicator status-offline';
-                statusIndicator.innerHTML = `<i class="fas fa-times-circle"></i> SERVIDOR OFFLINE`;
-            }
-            
-            if(data.icon) {
-                serverIconContainer.innerHTML = `<img src="${data.icon}" class="server-icon" alt="Icono del servidor">`;
-            } else {
-                serverIconContainer.innerHTML = '';
-            }
-            
-            const serverType = isBedrock ? 'Minecraft Bedrock Edition' : 'Minecraft Java Edition';
-            const playersOnline = data.players && data.players.online ? data.players.online : 0;
-            const playersMax = data.players && data.players.max ? data.players.max : 0;
-            
-            const version = data.version ? data.version : (isBedrock ? 'Bedrock Edition' : 'Java Edition');
-            const hostname = data.hostname || data.ip || 'No disponible';
-            const portInfo = data.port ? data.port : (isBedrock ? '19132' : '25565');
-            const software = data.software ? data.software : 'Vanilla/Personalizado';
-            
-            let motdText = 'Sin información';
-            if(data.motd) {
-                if(data.motd.clean && Array.isArray(data.motd.clean)) {
-                    motdText = data.motd.clean.join(' ');
-                } else if(data.motd.raw && Array.isArray(data.motd.raw)) {
-                    motdText = data.motd.raw.join(' ');
-                } else if(typeof data.motd === 'string') {
-                    motdText = data.motd;
-                }
-            }
-            
-            // Obtener plugins de diferentes formas según la API
-            let plugins = [];
-            if(data.plugins) {
-                if(data.plugins.names && Array.isArray(data.plugins.names)) {
-                    plugins = data.plugins.names;
-                } else if(Array.isArray(data.plugins)) {
-                    plugins = data.plugins;
-                }
-            }
-            
-            const playersList = data.players && data.players.list ? data.players.list : [];
-            const map = data.map || 'No especificada';
-            const gamemode = data.gamemode || 'No especificado';
-            const difficulty = data.debug && data.debug.difficulty ? data.debug.difficulty : 'No especificada';
-            const seed = data.debug && data.debug.seed ? data.debug.seed : 'No pública';
-            const ping = data.debug && data.debug.ping ? `${data.debug.ping}ms` : 'No medido';
-            
-            const dataToDisplay = {
-                general: {
-                    title: 'Información General del Servidor',
-                    icon: 'fas fa-server',
-                    items: [
-                        {label: 'Estado:', value: isOnline ? '<span style="color:#00ff00">● EN LÍNEA</span>' : '<span style="color:#ff5555">● OFFLINE</span>'},
-                        {label: 'Hostname/IP:', value: `<strong style="color:#00ffff">${hostname}</strong>`},
-                        {label: 'Puerto:', value: `<code style="color:#ffff00">${portInfo}</code>`},
-                        {label: 'Edición:', value: `<span style="color:#ffaa00">${serverType} (${detectedEdition})</span>`},
-                        {label: 'Versión:', value: `<span style="color:#00ffaa">${version}</span>`},
-                        {label: 'Software:', value: `<span style="color:#ff88ff">${software}</span>`},
-                        {label: 'MOTD:', value: `<span style="color:#ffffff">${motdText}</span>`}
-                    ]
-                },
-                players: {
-                    title: 'Información de Jugadores',
-                    icon: 'fas fa-users',
-                    items: [
-                        {label: 'Jugadores en línea:', value: `<span style="color:#ffff00; font-size: 1.2em">${playersOnline}</span> / <span style="color:#00ffff">${playersMax}</span>`},
-                        {label: 'Ratio de ocupación:', value: playersMax > 0 ? `<span style="color:#ffaa00">${((playersOnline/playersMax)*100).toFixed(1)}%</span>` : 'N/A'},
-                        {label: 'Lista de jugadores:', value: playersList.length > 0 ? `${playersList.length} visible(s)` : 'No disponible o oculta'}
-                    ],
-                    playersList: playersList
-                },
-                world: {
-                    title: 'Información del Mundo',
-                    icon: 'fas fa-globe-americas',
-                    items: [
-                        {label: 'Mapa actual:', value: map !== 'No disponible' ? `<span style="color:#00ffaa">${map}</span>` : 'No especificada'},
-                        {label: 'Modo de juego:', value: `<span style="color:#ffaa00">${gamemode}</span>`},
-                        {label: 'Dificultad:', value: `<span style="color:#ff5555">${difficulty}</span>`},
-                        {label: 'Hardcore:', value: data.debug && data.debug.hardcore ? '<span style="color:#ff0000; font-weight: bold">SÍ</span>' : 'No'},
-                        {label: 'Semilla:', value: seed !== 'No disponible' ? `<code style="color:#8888ff">${seed}</code>` : 'No pública'}
-                    ]
-                },
-                plugins: {
-                    title: 'Plugins Detectados',
-                    icon: 'fas fa-puzzle-piece',
-                    items: [
-                        {label: 'Total de plugins:', value: plugins.length > 0 ? `<span style="color:#00ff00; font-size: 1.2em">${plugins.length}</span>` : '0'},
-                        {label: 'Tipo de servidor:', value: plugins.length > 0 ? '<span style="color:#00ffff">Con plugins</span>' : '<span style="color:#888">Vanilla</span>'},
-                        {label: 'Detalles:', value: plugins.length > 0 ? `${plugins.length} plugins encontrados` : 'Sin plugins detectables'}
-                    ],
-                    pluginsList: plugins
-                },
-                network: {
-                    title: 'Estadísticas de Red',
-                    icon: 'fas fa-network-wired',
-                    items: [
-                        {label: 'Ping API:', value: `<span style="color:#00ffaa">${ping}</span>`},
-                        {label: 'Cacheado:', value: data.debug && data.debug.cachetime ? `${Math.floor(data.debug.cachetime)} segundos` : 'Directo'},
-                        {label: 'Protocolo:', value: data.protocol ? `<code style="color:#ffff00">v${data.protocol}</code>` : 'Último'},
-                        {label: 'DNS:', value: data.debug && data.debug.dns ? '<span style="color:#00ff00">✓ Configurado</span>' : '<span style="color:#888">No configurado</span>'},
-                        {label: 'SRV:', value: data.debug && data.debug.srv ? '<span style="color:#00ff00">✓ Registrado</span>' : '<span style="color:#888">No registrado</span>'}
-                    ]
-                },
-                                technical: {
-                    title: 'Datos Técnicos y API',
-                    icon: 'fas fa-microchip',
-                    items: [
-                        {label: 'API utilizada:', value: '<span style="color:#ffaa00; font-weight: bold">mcsrvstat.us</span>'},
-                        {label: 'Edición detectada:', value: detectedEdition === 'bedrock' ? '<span style="color:#00ffff">✓ BEDROCK</span>' : '<span style="color:#00ff00">✓ JAVA</span>'},
-                        {label: 'ID del servidor:', value: data.debug && data.debug.id ? `<code style="color:#8888ff">${data.debug.id}</code>` : 'No disponible'},
-                        {label: 'Versión API:', value: data.debug && data.debug.apiversion ? data.debug.apiversion : '2.0'},
-                        {label: 'Cache activo:', value: data.debug && data.debug.cache ? '<span style="color:#00ff00">✓ SÍ</span>' : '<span style="color:#888">No</span>'},
-                        {label: 'Análisis realizado:', value: `<span style="color:#aaaaaa">${new Date().toLocaleString('es-ES')}</span>`}
-                    ]
-                }
-            };
-            
-            resultsGrid.innerHTML = '';
-            let cardCount = 1;
-            
-            for(const category in dataToDisplay) {
-                const categoryData = dataToDisplay[category];
-                const card = document.createElement('div');
-                card.className = `info-card card-${cardCount}`;
-                
-                let itemsHTML = '';
-                categoryData.items.forEach(item => {
-                    itemsHTML += `<p>${item.label} <span>${item.value}</span></p>`;
-                });
-                
-                let extraContent = '';
-                
-                if(category === 'players' && categoryData.playersList && categoryData.playersList.length > 0) {
-                    extraContent = '<div class="players-list">';
-                    categoryData.playersList.slice(0, 15).forEach(player => {
-                        const playerName = player.name || player;
-                        extraContent += `
-                            <div class="player-item">
-                                <div class="player-avatar" style="background: linear-gradient(45deg, ${getRandomColor()}, ${getRandomColor()})"></div>
-                                <span style="color:#ffffff">${playerName}</span>
-                            </div>
-                        `;
-                    });
-                    if(categoryData.playersList.length > 15) {
-                        extraContent += `<div style="color:#888; padding: 10px; text-align: center;">+${categoryData.playersList.length - 15} jugadores más</div>`;
-                    }
-                    extraContent += '</div>';
-                }
-                
-                if(category === 'plugins') {
-                    if(categoryData.pluginsList.length > 0) {
-                        extraContent = '<div class="plugins-list-container">';
-                        extraContent += `<div style="color:#00ffff; margin-bottom: 10px; font-weight: bold;">Lista completa de plugins (${categoryData.pluginsList.length}):</div>`;
-                        
-                        categoryData.pluginsList.forEach((plugin, index) => {
-                            extraContent += `
-                                <div class="plugin-item">
-                                    <i class="fas fa-plug" style="color:#00aaff"></i>
-                                    <span style="color:#ffffff; flex: 1;">${plugin}</span>
-                                    <span class="plugin-count">#${index + 1}</span>
-                                </div>
-                            `;
-                        });
-                        
-                        extraContent += '</div>';
-                    } else {
-                        extraContent = '<div style="text-align: center; padding: 20px; background: rgba(255, 255, 255, 0.05); border-radius: 8px; margin-top: 10px;">';
-                        extraContent += '<i class="fas fa-info-circle" style="color:#888; font-size: 2rem; margin-bottom: 10px;"></i>';
-                        extraContent += '<p style="color:#888; font-style: italic; margin: 0;">Servidor Vanilla o sin plugins detectables por la API</p>';
-                        extraContent += '</div>';
-                    }
-                }
-                
-                card.innerHTML = `
-                    <h3 class="card-title"><i class="${categoryData.icon}"></i> ${categoryData.title}</h3>
-                    <div class="card-content">
-                        ${itemsHTML}
-                        ${extraContent}
+    console.log('Datos recibidos:', data);
+    
+    const resultsGrid = document.getElementById('resultsGrid');
+    const statusIndicator = document.getElementById('connectionStatus');
+    const serverIconContainer = document.getElementById('serverIconContainer');
+    
+    const isOnline = data.online === true;
+    
+    if(isOnline) {
+        statusIndicator.className = 'status-indicator status-online';
+        statusIndicator.innerHTML = `<i class="fas fa-check-circle"></i> SERVIDOR EN LÍNEA`;
+    } else {
+        statusIndicator.className = 'status-indicator status-offline';
+        statusIndicator.innerHTML = `<i class="fas fa-times-circle"></i> SERVIDOR OFFLINE`;
+        
+        resultsGrid.innerHTML = `
+            <div class="info-card card-1" style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+                <h3 class="card-title"><i class="fas fa-server"></i> Servidor Offline</h3>
+                <div class="card-content">
+                    <p style="color:#ff5555; font-size: 1.2rem; margin-bottom: 20px;">
+                        <i class="fas fa-exclamation-triangle"></i> El servidor no está disponible
+                    </p>
+                    <p style="color:#aaaaaa; margin-bottom: 15px;">
+                        No se puede obtener información porque el servidor está offline.
+                    </p>
+                    <p style="color:#888; font-style: italic;">
+                        Verifica que la IP y el puerto sean correctos, y que el servidor esté encendido.
+                    </p>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('results').style.display = 'block';
+        return;
+    }
+    
+    if(data.icon) {
+        serverIconContainer.innerHTML = `<img src="${data.icon}" class="server-icon" alt="Icono del servidor">`;
+    } else {
+        serverIconContainer.innerHTML = '';
+    }
+    
+    const isBedrock = data._isBedrock || false;
+    const serverType = isBedrock ? 'Minecraft Bedrock Edition' : 'Minecraft Java Edition';
+    const playersOnline = data.players && data.players.online ? data.players.online : 0;
+    const playersMax = data.players && data.players.max ? data.players.max : 0;
+    
+    const version = data.version ? data.version : 'No disponible';
+    const hostname = data.hostname || data.ip || 'No disponible';
+    const portInfo = data.port ? data.port : (isBedrock ? '19132' : '25565');
+    const software = data.software ? data.software : 'Vanilla';
+    
+    let motdText = 'No disponible';
+    if(data.motd) {
+        if(data.motd.clean && Array.isArray(data.motd.clean)) {
+            motdText = data.motd.clean.join(' ');
+        } else if(typeof data.motd === 'string') {
+            motdText = data.motd;
+        }
+    }
+    
+    let plugins = [];
+    if(data.plugins) {
+        if(data.plugins.names && Array.isArray(data.plugins.names)) {
+            plugins = data.plugins.names;
+        }
+    }
+    
+    const playersList = data.players && data.players.list ? data.players.list : [];
+    const map = data.map || 'No especificada';
+    const gamemode = data.gamemode || 'No especificado';
+    
+    const dataToDisplay = {
+        general: {
+            title: 'Información General',
+            icon: 'fas fa-server',
+            items: [
+                {label: 'Hostname/IP:', value: `<strong style="color:#00ffff">${hostname}</strong>`},
+                {label: 'Puerto:', value: `<code style="color:#ffff00">${portInfo}</code>`},
+                {label: 'Edición:', value: `<span style="color:#ffaa00">${serverType}</span>`},
+                {label: 'Versión:', value: `<span style="color:#00ffaa">${version}</span>`},
+                {label: 'Software:', value: `<span style="color:#ff88ff">${software}</span>`},
+                {label: 'MOTD:', value: `<span style="color:#ffffff">${motdText}</span>`}
+            ]
+        },
+        players: {
+            title: 'Jugadores',
+            icon: 'fas fa-users',
+            items: [
+                {label: 'En línea:', value: `<span style="color:#ffff00; font-size: 1.2em">${playersOnline}</span> / <span style="color:#00ffff">${playersMax}</span>`},
+                {label: 'Ocupación:', value: playersMax > 0 ? `<span style="color:#ffaa00">${((playersOnline/playersMax)*100).toFixed(1)}%</span>` : 'N/A'}
+            ],
+            playersList: playersList
+        },
+        world: {
+            title: 'Mundo',
+            icon: 'fas fa-globe-americas',
+            items: [
+                {label: 'Mapa:', value: `<span style="color:#00ffaa">${map}</span>`},
+                {label: 'Modo de juego:', value: `<span style="color:#ffaa00">${gamemode}</span>`}
+            ]
+        },
+        plugins: {
+            title: 'Plugins',
+            icon: 'fas fa-puzzle-piece',
+            items: [
+                {label: 'Cantidad:', value: plugins.length > 0 ? `<span style="color:#00ff00; font-size: 1.2em">${plugins.length}</span>` : '0'}
+            ],
+            pluginsList: plugins
+        }
+    };
+    
+    resultsGrid.innerHTML = '';
+    let cardCount = 1;
+    
+    for(const category in dataToDisplay) {
+        const categoryData = dataToDisplay[category];
+        const card = document.createElement('div');
+        card.className = `info-card card-${cardCount}`;
+        
+        let itemsHTML = '';
+        categoryData.items.forEach(item => {
+            itemsHTML += `<p>${item.label} <span>${item.value}</span></p>`;
+        });
+        
+        let extraContent = '';
+        
+        if(category === 'players' && categoryData.playersList && categoryData.playersList.length > 0) {
+            extraContent = '<div class="players-list">';
+            categoryData.playersList.slice(0, 10).forEach(player => {
+                const playerName = player.name || player;
+                extraContent += `
+                    <div class="player-item">
+                        <div class="player-avatar"></div>
+                        <span style="color:#ffffff">${playerName}</span>
                     </div>
                 `;
-                
-                resultsGrid.appendChild(card);
-                cardCount = cardCount > 6 ? 1 : cardCount + 1;
+            });
+            if(categoryData.playersList.length > 10) {
+                extraContent += `<div style="color:#888; padding: 10px; text-align: center;">+${categoryData.playersList.length - 10} más</div>`;
             }
-            
-            document.getElementById('results').style.display = 'block';
+            extraContent += '</div>';
         }
+        
+        if(category === 'plugins' && categoryData.pluginsList.length > 0) {
+            extraContent = '<div class="plugins-list-container">';
+            categoryData.pluginsList.slice(0, 20).forEach((plugin, index) => {
+                extraContent += `
+                    <div class="plugin-item">
+                        <i class="fas fa-plug"></i>
+                        <span>${plugin}</span>
+                    </div>
+                `;
+            });
+            if(categoryData.pluginsList.length > 20) {
+                extraContent += `<div style="color:#888; padding: 10px; text-align: center;">+${categoryData.pluginsList.length - 20} plugins más</div>`;
+            }
+            extraContent += '</div>';
+        }
+        
+        card.innerHTML = `
+            <h3 class="card-title"><i class="${categoryData.icon}"></i> ${categoryData.title}</h3>
+            <div class="card-content">
+                ${itemsHTML}
+                ${extraContent}
+            </div>
+        `;
+        
+        resultsGrid.appendChild(card);
+        cardCount = cardCount > 4 ? 1 : cardCount + 1;
+    }
+    
+    document.getElementById('results').style.display = 'block';
+}
         
         function getRandomColor() {
             const colors = [
@@ -1010,3 +976,4 @@
     </script>
 </body>
 </html>
+
