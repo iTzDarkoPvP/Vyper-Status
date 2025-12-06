@@ -703,21 +703,6 @@ function displayResults(data) {
     const version = data.version ? data.version : 'No disponible';
     const hostname = data.hostname || data.ip || 'No disponible';
     const portInfo = data.port ? data.port : (isBedrock ? '19132' : '25565');
-
-    let version = 'No disponible';
-let software = 'No disponible';
-
-if (data.debug && data.debug.software) {
-    software = data.debug.software;
-} else if (data.software) {
-    software = data.software;
-}
-
-if (data.version) {
-    version = data.version;
-}
-
-const versionDisplay = software !== 'No disponible' ? software : version;
     
     let motdText = 'No disponible';
     if(data.motd) {
@@ -770,7 +755,6 @@ const versionDisplay = software !== 'No disponible' ? software : version;
                 {label: 'Protocolo:', value: `<code style="color:#8888ff">v${protocol}</code>`},
                 {label: 'Bedrock:', value: isBedrock ? '<span style="color:#00ff00">✓ Sí</span>' : '<span style="color:#ff5555">✗ No</span>'},
                 {label: 'Query:', value: query === 'Sí' ? '<span style="color:#00ff00">✓ Activado</span>' : '<span style="color:#ff5555">✗ Desactivado</span>'},
-                {label: 'Software:', value: `<span style="color:#00ffaa">${versionDisplay}</span>`},
                 {label: 'API usada:', value: `<span style="color:#ffaa00">${data._apiUsed ? 'mcsrvstat.us' : 'mcsrvstat.us'}</span>`}
             ]
         },
@@ -902,5 +886,6 @@ const versionDisplay = software !== 'No disponible' ? software : version;
     </script>
 </body>
 </html>
+
 
 
