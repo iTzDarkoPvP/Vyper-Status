@@ -1,2 +1,2 @@
-# iTzDarkoMC.github.io
+# Vyper Status
 Query Servers MCPE
