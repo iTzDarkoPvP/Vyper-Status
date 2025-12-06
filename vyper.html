@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vyper Stats - Analizador de Servidores Minecraft</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Courier New', monospace;
+        }
+        
+        body {
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(28, 58, 173, 0.1) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(128, 0, 128, 0.1) 0%, transparent 20%);
+        }
+        
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            z-index: 1;
+            position: relative;
+        }
+        
+        @keyframes rgb-border {
+            0% { 
+                border-image: linear-gradient(90deg, #00ffff, #ff00ff, #ffff00, #00ff00) 1;
+                box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            }
+            25% { 
+                border-image: linear-gradient(90deg, #ff00ff, #ffff00, #00ff00, #00ffff) 1;
+                box-shadow: 0 0 20px rgba(255, 0, 255, 0.3);
+            }
+            50% { 
+                border-image: linear-gradient(90deg, #ffff00, #00ff00, #00ffff, #ff00ff) 1;
+                box-shadow: 0 0 20px rgba(255, 255, 0, 0.3);
+            }
+            75% { 
+                border-image: linear-gradient(90deg, #00ff00, #00ffff, #ff00ff, #ffff00) 1;
+                box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            }
+            100% { 
+                border-image: linear-gradient(90deg, #00ffff, #ff00ff, #ffff00, #00ff00) 1;
+                box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            }
+        }
+
+        @keyframes rgb-text {
+            0% { 
+                background-position: 0% 50%;
+                filter: hue-rotate(0deg);
+            }
+            50% { 
+                background-position: 100% 50%;
+            }
+            100% { 
+                background-position: 0% 50%;
+                filter: hue-rotate(360deg);
+            }
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px;
+            margin-bottom: 40px;
+            border-bottom: 3px solid transparent;
+            animation: rgb-border 3s infinite linear;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+        }
+        
+        h1 {
+            font-size: 3.5rem;
+            background: linear-gradient(90deg, #00ffff, #ff00ff, #ffff00, #00ff00, #00ffff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+            animation: rgb-text 4s infinite linear;
+            background-size: 300% 300%;
+        }
+        
+        .tagline {
+            font-size: 1.2rem;
+            color: #a0a0ff;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+        
+        .input-section {
+            background: rgba(10, 10, 40, 0.7);
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 40px;
+            box-shadow: 0 0 30px rgba(0, 150, 255, 0.2);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .input-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        label {
+            font-size: 1.1rem;
+            color: #00ffff;
+            min-width: 200px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        input, select {
+            flex: 1;
+            padding: 15px;
+            background: rgba(0, 20, 40, 0.8);
+            border: 1px solid #00aaff;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1rem;
+            min-width: 300px;
+            transition: all 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #ff00ff;
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+        }
+        
+        .btn {
+            padding: 15px 40px;
+            background: linear-gradient(90deg, #00aaff, #0088ff);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 0 auto;
+            box-shadow: 0 0 20px rgba(0, 170, 255, 0.5);
+        }
+        
+        .btn:hover {
+            background: linear-gradient(90deg, #0088ff, #00aaff);
+            box-shadow: 0 0 25px rgba(0, 170, 255, 0.8);
+            transform: translateY(-3px);
+        }
+        
+        .btn:active {
+            transform: translateY(1px);
+        }
+        
+        .results {
+            display: none;
+            background: rgba(5, 5, 25, 0.85);
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 30px;
+            box-shadow: 0 0 40px rgba(255, 0, 255, 0.1);
+            border: 1px solid rgba(255, 0, 255, 0.2);
+            animation: fadeIn 0.8s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.3);
+        }
+        
+        .results-title {
+            font-size: 1.8rem;
+            color: #00ffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+        }
+        
+        .info-card {
+            background: rgba(15, 30, 60, 0.7);
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 4px solid;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s;
+        }
+        
+        .info-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card-1 { border-color: #00ffff; }
+        .card-2 { border-color: #ff00ff; }
+        .card-3 { border-color: #ffff00; }
+        .card-4 { border-color: #00ff00; }
+        .card-5 { border-color: #ff7700; }
+        .card-6 { border-color: #aa00ff; }
+        
+        .card-title {
+            font-size: 1.2rem;
+            color: #aaddff;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card-content {
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+        
+        .card-content p {
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .card-content span {
+            color: #00ffaa;
+            font-weight: bold;
+            text-align: right;
+            max-width: 60%;
+            word-break: break-word;
+        }
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            font-weight: bold;
+        }
+        
+        .status-online {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+        }
+        
+        .status-offline {
+            background: rgba(255, 0, 0, 0.2);
+            color: #ff5555;
+            border: 1px solid rgba(255, 0, 0, 0.3);
+        }
+        
+        .players-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+        }
+        
+        .player-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .player-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #00ffff, #ff00ff);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .plugins-list-container {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+        }
+        
+        .plugin-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            background: rgba(0, 100, 200, 0.1);
+            border-radius: 6px;
+            border-left: 3px solid #00aaff;
+        }
+        
+        .plugin-item:nth-child(even) {
+            background: rgba(0, 150, 255, 0.1);
+            border-left-color: #00ffff;
+        }
+        
+        .plugin-count {
+            background: linear-gradient(45deg, #0066ff, #00aaff);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-left: auto;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 30px 0;
+            margin-top: 50px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #8888ff;
+            font-size: 0.9rem;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 30px;
+            background: rgba(0, 20, 40, 0.7);
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(0, 150, 255, 0.3);
+            border-top: 5px solid #00ffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .examples {
+            font-size: 0.9rem;
+            color: #88aaff;
+            margin-top: 10px;
+            text-align: center;
+        }
+        
+        .edition-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 50, 100, 0.5);
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .error-message {
+            background: linear-gradient(90deg, rgba(255, 50, 0, 0.1), rgba(255, 150, 0, 0.1));
+            border: 1px solid rgba(255, 100, 0, 0.5);
+            color: #ffaaaa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+            border-left: 4px solid #ff5500;
+            box-shadow: 0 0 20px rgba(255, 100, 0, 0.3);
+        }
+        
+        .server-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 10px;
+            margin: 10px auto;
+            display: block;
+            border: 2px solid rgba(0, 255, 255, 0.5);
+        }
+        
+        @media (max-width: 768px) {
+            .input-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            input, select {
+                min-width: 100%;
+            }
+            
+            h1 {
+                font-size: 2.5rem;
+            }
+            
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas class="matrix-bg" id="matrixCanvas"></canvas>
+    
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-rocket"></i> Vyper Stats</h1>
+            <p class="tagline">Analizador Avanzado de Servidores Minecraft - Java y Bedrock</p>
+        </header>
+        
+        <section class="input-section">
+            <div class="input-group">
+                <div class="input-row">
+                    <label for="target"><i class="fas fa-globe"></i> IP o Dominio:</label>
+                    <input type="text" id="target" placeholder="Ej: play.hypixel.net, 8.8.8.8:19132, mc.hypixel.net">
+                </div>
+                
+                <div class="input-row">
+                    <label for="edition"><i class="fas fa-gamepad"></i> Edición del Servidor:</label>
+                    <select id="edition">
+                        <option value="auto">Detectar Automáticamente</option>
+                        <option value="java">Java Edition</option>
+                        <option value="bedrock">Bedrock Edition</option>
+                    </select>
+                </div>
+                
+                <div class="edition-info">
+                    <i class="fas fa-info-circle"></i>
+                    <p>Para Bedrock usa IP:PUERTO (ej: 8.8.8.8:19132). Para Java solo IP/dominio. Deja en automático para detección inteligente.</p>
+                </div>
+            </div>
+            
+            <button class="btn" id="analyzeBtn">
+                <i class="fas fa-search"></i> Analizar Servidor
+            </button>
+            
+            <p class="examples">Ejemplos: play.hypixel.net, mc.hypixel.net, 8.8.8.8:19132, mc.supercraft.es:25565</p>
+            
+            <div class="error-message" id="errorMessage"></div>
+        </section>
+        
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p>Conectando con la API y analizando servidor...</p>
+        </div>
+        
+        <section class="results" id="results">
+            <div class="results-header">
+                <h2 class="results-title"><i class="fas fa-chart-bar"></i> Resultados del Análisis</h2>
+                <div class="status-indicator status-online" id="connectionStatus">CONECTANDO...</div>
+            </div>
+            
+            <div id="serverIconContainer"></div>
+            
+            <div class="results-grid" id="resultsGrid">
+            </div>
+        </section>
+        
+        <footer>
+            <p>Está es una versión beta de esta herramienta, próximamente se mejorará y dará resultados mejores a la hora de hacer una consulta a un servidor ya que por la api da algunos errores. 🛠️</p>
+            <p> </p>
+            <p>Vyper Stats &copy; 2025 - Analizador de servidores Minecraft con API mcsrvstat.us</p>
+            <p>Powered by Minecraft Server Status API | Herramienta hecha por Darko</p>
+            <p>Recomendado usar detección automática de la edición de juego</p>
+        </footer>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('matrixCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        const letters = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+        const drops = [];
+        
+        for(let i = 0; i < columns; i++) {
+            drops[i] = Math.floor(Math.random() * canvas.height / fontSize) * fontSize;
+        }
+        
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#0f0';
+            ctx.font = `${fontSize}px monospace`;
+            
+            for(let i = 0; i < drops.length; i++) {
+                const text = letters.charAt(Math.floor(Math.random() * letters.length));
+                const x = i * fontSize;
+                const y = drops[i] * fontSize;
+                
+                ctx.fillStyle = Math.random() > 0.1 ? '#0f0' : '#0ff';
+                ctx.fillText(text, x, y);
+                
+                if(y > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                
+                drops[i]++;
+            }
+        }
+        
+        setInterval(drawMatrix, 50);
+        
+        window.addEventListener('resize', function() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+        
+        document.getElementById('analyzeBtn').addEventListener('click', async function() {
+            const target = document.getElementById('target').value.trim();
+            const edition = document.getElementById('edition').value;
+            
+            if(!target) {
+                showError('Por favor, ingresa la IP o dominio del servidor Minecraft');
+                return;
+            }
+            
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+            
+            try {
+                const serverData = await fetchServerData(target, edition);
+                displayResults(serverData);
+            } catch (error) {
+                console.error('Error:', error);
+                showError(`Error al analizar el servidor: ${error.message}`);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        });
+        
+        async function fetchServerData(target, edition) {
+            const [ip, port] = parseTarget(target);
+            let isBedrock = false;
+            let detectedEdition = edition;
+            
+            // Mejorar la detección automática
+            if (edition === 'auto') {
+                // Si tiene puerto 19132 o 19133 (puertos comunes de Bedrock)
+                if (port === '19132' || port === '19133') {
+                    isBedrock = true;
+                    detectedEdition = 'bedrock';
+                } 
+                // Si es una IP numérica con puerto, podría ser Bedrock
+                else if (port && /^\d{1,5}$/.test(port) && /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) {
+                    // Intentar primero Java, luego Bedrock
+                    try {
+                        const javaApiUrl = `https://api.mcsrvstat.us/2/${ip}${port ? `:${port}` : ''}`;
+                        const response = await fetchWithTimeout(javaApiUrl);
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.online) {
+                                isBedrock = false;
+                                detectedEdition = 'java';
+                                return data;
+                            }
+                        }
+                    } catch (e) {
+                        // Fallback a Bedrock
+                        isBedrock = true;
+                        detectedEdition = 'bedrock';
+                    }
+                } else {
+                    // Por defecto asumir Java para dominios sin puerto específico
+                    isBedrock = false;
+                    detectedEdition = 'java';
+                }
+            } else if (edition === 'bedrock') {
+                isBedrock = true;
+            } else {
+                isBedrock = false;
+            }
+            
+            const apiBase = isBedrock ? 'https://api.mcsrvstat.us/bedrock/2/' : 'https://api.mcsrvstat.us/2/';
+            const apiUrl = `${apiBase}${ip}${port ? `:${port}` : ''}`;
+            
+            console.log('Consultando API:', apiUrl, 'Edición:', detectedEdition);
+            
+            try {
+                const data = await fetchWithRetry(apiUrl, isBedrock);
+                data._detectedEdition = detectedEdition;
+                data._isBedrock = isBedrock;
+                return data;
+                
+            } catch (error) {
+                // Si falla con una edición, intentar con la otra
+                if (edition === 'auto') {
+                    console.log('Intento fallido, probando edición alternativa...');
+                    const alternativeApiUrl = isBedrock 
+                        ? `https://api.mcsrvstat.us/2/${ip}${port ? `:${port}` : ''}`
+                        : `https://api.mcsrvstat.us/bedrock/2/${ip}${port ? `:${port}` : ''}`;
+                    
+                    try {
+                        const alternativeData = await fetchWithRetry(alternativeApiUrl, !isBedrock);
+                        alternativeData._detectedEdition = isBedrock ? 'java' : 'bedrock';
+                        alternativeData._isBedrock = !isBedrock;
+                        return alternativeData;
+                    } catch (altError) {
+                        throw error; // Lanzar el error original
+                    }
+                } else {
+                    throw error;
+                }
+            }
+        }
+        
+        async function fetchWithRetry(url, isBedrock) {
+            let lastError;
+            
+            for (let attempt = 0; attempt < 2; attempt++) {
+                try {
+                    const response = await fetchWithTimeout(url);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Error de API: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // Validar respuesta de la API
+                    if (data && (data.online !== undefined || data.debug)) {
+                        return data;
+                    } else {
+                        throw new Error('Respuesta de API inválida');
+                    }
+                    
+                } catch (error) {
+                    lastError = error;
+                    if (attempt === 0) {
+                        console.log(`Intento ${attempt + 1} fallido, reintentando...`);
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                }
+            }
+            
+            throw lastError;
+        }
+        
+        async function fetchWithTimeout(url, timeout = 15000) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+            
+            try {
+                const response = await fetch(url, {
+                    signal: controller.signal,
+                    headers: {
+                        'Accept': 'application/json',
+                        'User-Agent': 'VyperStats/1.0'
+                    }
+                });
+                
+                clearTimeout(timeoutId);
+                return response;
+            } catch (error) {
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError') {
+                    throw new Error('Tiempo de espera agotado. El servidor no respondió.');
+                }
+                throw error;
+            }
+        }
+        
+        function parseTarget(target) {
+            let ip = target;
+            let port = null;
+            
+            // Manejar casos especiales
+            target = target.trim().toLowerCase();
+            
+            // Remover protocolo si existe
+            if (target.startsWith('minecraft://')) {
+                target = target.replace('minecraft://', '');
+            }
+            
+            if (target.includes(':')) {
+                const parts = target.split(':');
+                
+                // Manejar IPv6
+                if (target.includes('[') && target.includes(']')) {
+                    const ipv6Match = target.match(/\[(.*?)\](?::(\d+))?/);
+                    if (ipv6Match) {
+                        ip = ipv6Match[1];
+                        port = ipv6Match[2] || null;
+                    }
+                } else {
+                    // IPv4 o dominio normal
+                    const lastColon = target.lastIndexOf(':');
+                    ip = target.substring(0, lastColon);
+                    port = target.substring(lastColon + 1);
+                    
+                    // Verificar si el puerto es válido
+                    if (!port || isNaN(port) || port < 1 || port > 65535) {
+                        ip = target;
+                        port = null;
+                    }
+                }
+            }
+            
+            return [ip, port];
+        }
+        
+        function displayResults(data) {
+            console.log('Datos recibidos:', data);
+            
+            const resultsGrid = document.getElementById('resultsGrid');
+            const statusIndicator = document.getElementById('connectionStatus');
+            const serverIconContainer = document.getElementById('serverIconContainer');
+            
+            const isOnline = data.online === true;
+            const isBedrock = data._isBedrock || (data.debug && data.debug.bedrock === true);
+            const detectedEdition = data._detectedEdition || (isBedrock ? 'bedrock' : 'java');
+            
+            if(isOnline) {
+                statusIndicator.className = 'status-indicator status-online';
+                statusIndicator.innerHTML = `<i class="fas fa-check-circle"></i> SERVIDOR EN LÍNEA`;
+            } else {
+                statusIndicator.className = 'status-indicator status-offline';
+                statusIndicator.innerHTML = `<i class="fas fa-times-circle"></i> SERVIDOR OFFLINE`;
+            }
+            
+            if(data.icon) {
+                serverIconContainer.innerHTML = `<img src="${data.icon}" class="server-icon" alt="Icono del servidor">`;
+            } else {
+                serverIconContainer.innerHTML = '';
+            }
+            
+            const serverType = isBedrock ? 'Minecraft Bedrock Edition' : 'Minecraft Java Edition';
+            const playersOnline = data.players && data.players.online ? data.players.online : 0;
+            const playersMax = data.players && data.players.max ? data.players.max : 0;
+            
+            const version = data.version ? data.version : (isBedrock ? 'Bedrock Edition' : 'Java Edition');
+            const hostname = data.hostname || data.ip || 'No disponible';
+            const portInfo = data.port ? data.port : (isBedrock ? '19132' : '25565');
+            const software = data.software ? data.software : 'Vanilla/Personalizado';
+            
+            let motdText = 'Sin información';
+            if(data.motd) {
+                if(data.motd.clean && Array.isArray(data.motd.clean)) {
+                    motdText = data.motd.clean.join(' ');
+                } else if(data.motd.raw && Array.isArray(data.motd.raw)) {
+                    motdText = data.motd.raw.join(' ');
+                } else if(typeof data.motd === 'string') {
+                    motdText = data.motd;
+                }
+            }
+            
+            // Obtener plugins de diferentes formas según la API
+            let plugins = [];
+            if(data.plugins) {
+                if(data.plugins.names && Array.isArray(data.plugins.names)) {
+                    plugins = data.plugins.names;
+                } else if(Array.isArray(data.plugins)) {
+                    plugins = data.plugins;
+                }
+            }
+            
+            const playersList = data.players && data.players.list ? data.players.list : [];
+            const map = data.map || 'No especificada';
+            const gamemode = data.gamemode || 'No especificado';
+            const difficulty = data.debug && data.debug.difficulty ? data.debug.difficulty : 'No especificada';
+            const seed = data.debug && data.debug.seed ? data.debug.seed : 'No pública';
+            const ping = data.debug && data.debug.ping ? `${data.debug.ping}ms` : 'No medido';
+            
+            const dataToDisplay = {
+                general: {
+                    title: 'Información General del Servidor',
+                    icon: 'fas fa-server',
+                    items: [
+                        {label: 'Estado:', value: isOnline ? '<span style="color:#00ff00">● EN LÍNEA</span>' : '<span style="color:#ff5555">● OFFLINE</span>'},
+                        {label: 'Hostname/IP:', value: `<strong style="color:#00ffff">${hostname}</strong>`},
+                        {label: 'Puerto:', value: `<code style="color:#ffff00">${portInfo}</code>`},
+                        {label: 'Edición:', value: `<span style="color:#ffaa00">${serverType} (${detectedEdition})</span>`},
+                        {label: 'Versión:', value: `<span style="color:#00ffaa">${version}</span>`},
+                        {label: 'Software:', value: `<span style="color:#ff88ff">${software}</span>`},
+                        {label: 'MOTD:', value: `<span style="color:#ffffff">${motdText}</span>`}
+                    ]
+                },
+                players: {
+                    title: 'Información de Jugadores',
+                    icon: 'fas fa-users',
+                    items: [
+                        {label: 'Jugadores en línea:', value: `<span style="color:#ffff00; font-size: 1.2em">${playersOnline}</span> / <span style="color:#00ffff">${playersMax}</span>`},
+                        {label: 'Ratio de ocupación:', value: playersMax > 0 ? `<span style="color:#ffaa00">${((playersOnline/playersMax)*100).toFixed(1)}%</span>` : 'N/A'},
+                        {label: 'Lista de jugadores:', value: playersList.length > 0 ? `${playersList.length} visible(s)` : 'No disponible o oculta'}
+                    ],
+                    playersList: playersList
+                },
+                world: {
+                    title: 'Información del Mundo',
+                    icon: 'fas fa-globe-americas',
+                    items: [
+                        {label: 'Mapa actual:', value: map !== 'No disponible' ? `<span style="color:#00ffaa">${map}</span>` : 'No especificada'},
+                        {label: 'Modo de juego:', value: `<span style="color:#ffaa00">${gamemode}</span>`},
+                        {label: 'Dificultad:', value: `<span style="color:#ff5555">${difficulty}</span>`},
+                        {label: 'Hardcore:', value: data.debug && data.debug.hardcore ? '<span style="color:#ff0000; font-weight: bold">SÍ</span>' : 'No'},
+                        {label: 'Semilla:', value: seed !== 'No disponible' ? `<code style="color:#8888ff">${seed}</code>` : 'No pública'}
+                    ]
+                },
+                plugins: {
+                    title: 'Plugins Detectados',
+                    icon: 'fas fa-puzzle-piece',
+                    items: [
+                        {label: 'Total de plugins:', value: plugins.length > 0 ? `<span style="color:#00ff00; font-size: 1.2em">${plugins.length}</span>` : '0'},
+                        {label: 'Tipo de servidor:', value: plugins.length > 0 ? '<span style="color:#00ffff">Con plugins</span>' : '<span style="color:#888">Vanilla</span>'},
+                        {label: 'Detalles:', value: plugins.length > 0 ? `${plugins.length} plugins encontrados` : 'Sin plugins detectables'}
+                    ],
+                    pluginsList: plugins
+                },
+                network: {
+                    title: 'Estadísticas de Red',
+                    icon: 'fas fa-network-wired',
+                    items: [
+                        {label: 'Ping API:', value: `<span style="color:#00ffaa">${ping}</span>`},
+                        {label: 'Cacheado:', value: data.debug && data.debug.cachetime ? `${Math.floor(data.debug.cachetime)} segundos` : 'Directo'},
+                        {label: 'Protocolo:', value: data.protocol ? `<code style="color:#ffff00">v${data.protocol}</code>` : 'Último'},
+                        {label: 'DNS:', value: data.debug && data.debug.dns ? '<span style="color:#00ff00">✓ Configurado</span>' : '<span style="color:#888">No configurado</span>'},
+                        {label: 'SRV:', value: data.debug && data.debug.srv ? '<span style="color:#00ff00">✓ Registrado</span>' : '<span style="color:#888">No registrado</span>'}
+                    ]
+                },
+                                technical: {
+                    title: 'Datos Técnicos y API',
+                    icon: 'fas fa-microchip',
+                    items: [
+                        {label: 'API utilizada:', value: '<span style="color:#ffaa00; font-weight: bold">mcsrvstat.us</span>'},
+                        {label: 'Edición detectada:', value: detectedEdition === 'bedrock' ? '<span style="color:#00ffff">✓ BEDROCK</span>' : '<span style="color:#00ff00">✓ JAVA</span>'},
+                        {label: 'ID del servidor:', value: data.debug && data.debug.id ? `<code style="color:#8888ff">${data.debug.id}</code>` : 'No disponible'},
+                        {label: 'Versión API:', value: data.debug && data.debug.apiversion ? data.debug.apiversion : '2.0'},
+                        {label: 'Cache activo:', value: data.debug && data.debug.cache ? '<span style="color:#00ff00">✓ SÍ</span>' : '<span style="color:#888">No</span>'},
+                        {label: 'Análisis realizado:', value: `<span style="color:#aaaaaa">${new Date().toLocaleString('es-ES')}</span>`}
+                    ]
+                }
+            };
+            
+            resultsGrid.innerHTML = '';
+            let cardCount = 1;
+            
+            for(const category in dataToDisplay) {
+                const categoryData = dataToDisplay[category];
+                const card = document.createElement('div');
+                card.className = `info-card card-${cardCount}`;
+                
+                let itemsHTML = '';
+                categoryData.items.forEach(item => {
+                    itemsHTML += `<p>${item.label} <span>${item.value}</span></p>`;
+                });
+                
+                let extraContent = '';
+                
+                if(category === 'players' && categoryData.playersList && categoryData.playersList.length > 0) {
+                    extraContent = '<div class="players-list">';
+                    categoryData.playersList.slice(0, 15).forEach(player => {
+                        const playerName = player.name || player;
+                        extraContent += `
+                            <div class="player-item">
+                                <div class="player-avatar" style="background: linear-gradient(45deg, ${getRandomColor()}, ${getRandomColor()})"></div>
+                                <span style="color:#ffffff">${playerName}</span>
+                            </div>
+                        `;
+                    });
+                    if(categoryData.playersList.length > 15) {
+                        extraContent += `<div style="color:#888; padding: 10px; text-align: center;">+${categoryData.playersList.length - 15} jugadores más</div>`;
+                    }
+                    extraContent += '</div>';
+                }
+                
+                if(category === 'plugins') {
+                    if(categoryData.pluginsList.length > 0) {
+                        extraContent = '<div class="plugins-list-container">';
+                        extraContent += `<div style="color:#00ffff; margin-bottom: 10px; font-weight: bold;">Lista completa de plugins (${categoryData.pluginsList.length}):</div>`;
+                        
+                        categoryData.pluginsList.forEach((plugin, index) => {
+                            extraContent += `
+                                <div class="plugin-item">
+                                    <i class="fas fa-plug" style="color:#00aaff"></i>
+                                    <span style="color:#ffffff; flex: 1;">${plugin}</span>
+                                    <span class="plugin-count">#${index + 1}</span>
+                                </div>
+                            `;
+                        });
+                        
+                        extraContent += '</div>';
+                    } else {
+                        extraContent = '<div style="text-align: center; padding: 20px; background: rgba(255, 255, 255, 0.05); border-radius: 8px; margin-top: 10px;">';
+                        extraContent += '<i class="fas fa-info-circle" style="color:#888; font-size: 2rem; margin-bottom: 10px;"></i>';
+                        extraContent += '<p style="color:#888; font-style: italic; margin: 0;">Servidor Vanilla o sin plugins detectables por la API</p>';
+                        extraContent += '</div>';
+                    }
+                }
+                
+                card.innerHTML = `
+                    <h3 class="card-title"><i class="${categoryData.icon}"></i> ${categoryData.title}</h3>
+                    <div class="card-content">
+                        ${itemsHTML}
+                        ${extraContent}
+                    </div>
+                `;
+                
+                resultsGrid.appendChild(card);
+                cardCount = cardCount > 6 ? 1 : cardCount + 1;
+            }
+            
+            document.getElementById('results').style.display = 'block';
+        }
+        
+        function getRandomColor() {
+            const colors = [
+                '#00ffff', '#ff00ff', '#ffff00', '#00ff00',
+                '#ff7700', '#aa00ff', '#00aaff', '#ff0066'
+            ];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.innerHTML = `
+                <div style="display: flex; align-items: flex-start; gap: 15px;">
+                    <i class="fas fa-exclamation-triangle" style="color:#ffaa00; font-size: 1.8rem; margin-top: 2px;"></i>
+                    <div style="flex: 1;">
+                        <div style="color:#ff5555; font-size: 1.1rem; font-weight: bold; margin-bottom: 5px;">
+                            <i class="fas fa-times-circle"></i> Error en el análisis
+                        </div>
+                        <div style="color:#ffaaaa; margin-bottom: 8px;">${message}</div>
+                        <div style="color:#888; font-size: 0.9rem; padding: 8px; background: rgba(255, 255, 255, 0.05); border-radius: 5px;">
+                            <i class="fas fa-info-circle"></i> API: <strong style="color:#00aaff">mcsrvstat.us</strong> | 
+                            Verifica que el servidor esté online y la IP:PUERTO sean correctos
+                        </div>
+                        <div style="color:#888; font-size: 0.9rem; padding: 8px; background: rgba(255, 255, 255, 0.05); border-radius: 5px; margin-top: 10px;">
+                            <i class="fas fa-lightbulb"></i> <strong>Consejos:</strong><br>
+                            - Para servidores Bedrock usa: <code style="color:#00ffff">IP:19132</code><br>
+                            - Para servidores Java usa solo: <code style="color:#00ffff">IP o dominio</code><br>
+                            - Intenta con la detección automática primero
+                        </div>
+                    </div>
+                </div>
+            `;
+            errorDiv.style.display = 'block';
+            
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('loading').style.display = 'none';
+        }
+        
+        document.getElementById('target').addEventListener('keypress', function(e) {
+            if(e.key === 'Enter') {
+                document.getElementById('analyzeBtn').click();
+            }
+        });
+        
+        // Precargar algunos ejemplos útiles en el input
+        document.getElementById('target').value = '';
+        
+        // Ejemplos rápidos al hacer clic en el input
+        document.getElementById('target').addEventListener('focus', function() {
+            if(!this.value) {
+                this.placeholder = 'Ej: play.hypixel.net (Java) o 8.8.8.8:19132 (Bedrock)';
+            }
+        });
+    </script>
+</body>
+</html>
