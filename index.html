@@ -699,6 +699,16 @@ function displayResults(data) {
     const serverType = isBedrock ? 'Minecraft Bedrock Edition' : 'Minecraft Java Edition';
     const playersOnline = data.players && data.players.online ? data.players.online : 0;
     const playersMax = data.players && data.players.max ? data.players.max : 0;
+
+    let version = 'No disponible';
+
+    if (data.debug && data.debug.software) {
+      version = data.debug.software;
+    } else if (data.software) {
+      version = data.software;
+    } else if (data.version) {
+      version = data.version;
+    }
     
     const version = data.version ? data.version : 'No disponible';
     const hostname = data.hostname || data.ip || 'No disponible';
@@ -735,7 +745,7 @@ function displayResults(data) {
                 {label: 'IP:', value: data.ip ? `<code style="color:#ffff00">${data.ip}</code>` : 'No disponible'},
                 {label: 'Puerto:', value: `<code style="color:#ffff00">${portInfo}</code>`},
                 {label: 'Edición:', value: `<span style="color:#ffaa00">${serverType}</span>`},
-                {label: 'Versión:', value: `<span style="color:#00ffaa">${version}</span>`},
+                {label: 'Software:', value: `<span style="color:#00ffaa">${version}</span>`},
                 {label: 'MOTD:', value: `<span style="color:#ffffff">${motdText}</span>`}
             ]
         },
@@ -886,6 +896,7 @@ function displayResults(data) {
     </script>
 </body>
 </html>
+
 
 
 
