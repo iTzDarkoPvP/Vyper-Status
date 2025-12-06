@@ -710,7 +710,6 @@ function displayResults(data) {
       version = data.version;
     }
     
-    const version = data.version ? data.version : 'No disponible';
     const hostname = data.hostname || data.ip || 'No disponible';
     const portInfo = data.port ? data.port : (isBedrock ? '19132' : '25565');
     
@@ -896,6 +895,7 @@ function displayResults(data) {
     </script>
 </body>
 </html>
+
 
 
 
